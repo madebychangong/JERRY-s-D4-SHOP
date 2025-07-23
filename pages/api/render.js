@@ -1,39 +1,29 @@
-import chrome from 'chrome-aws-lambda';
-import puppeteer from 'puppeteer-core';
+// pages/api/render.js
+
+import chromium from 'chrome-aws-lambda'
+import puppeteer from 'puppeteer-core'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed. Use POST.' });
+    return res.status(405).send('Method Not Allowed')
   }
 
-  const { html } = req.body;
-
+  const { html } = req.body
   if (!html) {
-    return res.status(400).json({ error: 'HTML content is required.' });
+    return res.status(400).json({ error: 'Missing html' })
   }
 
-  let browser = null;
+  const browser = await puppeteer.launch({
+    args: chromium.args,
+    executablePath: await chromium.executablePath,
+    headless: chromium.headless,
+  })
 
-  try {
-    browser = await puppeteer.launch({
-      args: chrome.args,
-      executablePath: await chrome.executablePath,
-      headless: chrome.headless,
-    });
+  const page = await browser.newPage()
+  await page.setContent(html, { waitUntil: 'networkidle0' })
+  const screenshot = await page.screenshot({ type: 'png' })
+  await browser.close()
 
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-
-    const screenshotBuffer = await page.screenshot({ type: 'png', fullPage: true });
-
-    res.setHeader('Content-Type', 'image/png');
-    res.status(200).send(screenshotBuffer);
-  } catch (error) {
-    console.error('Error rendering image:', error);
-    res.status(500).json({ error: 'Failed to render image.' });
-  } finally {
-    if (browser !== null) {
-      await browser.close();
-    }
-  }
+  res.setHeader('Content-Type', 'image/png')
+  res.status(200).end(screenshot)
 }
