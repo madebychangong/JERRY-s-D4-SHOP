@@ -6,11 +6,11 @@
     "build": "next build",
     "start": "next start"
   },
-  "dependencies": {
-    "next": "14.1.0",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "puppeteer-core": "^21.3.8",
-    "chrome-aws-lambda": "^10.1.0"
+"dependencies": {
+  "next": "12.3.1",
+  "react": "17.0.2",
+  "react-dom": "17.0.2",
+  "puppeteer-core": "10.1.0",
+  "chrome-aws-lambda": "10.1.0"
   }
 }
