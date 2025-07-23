@@ -1,47 +1,39 @@
-// pages/api/render.js
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import chromium from '@sparticuz/chromium-min';
+import chrome from 'chrome-aws-lambda';
 import puppeteer from 'puppeteer-core';
-
-export const config = {
-  api: {
-    bodyParser: true,
-  },
-};
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    res.status(405).send('Method Not Allowed');
-    return;
+    return res.status(405).json({ error: 'Method not allowed. Use POST.' });
   }
 
-  const data = req.body;
+  const { html } = req.body;
 
-  // 템플릿 HTML 파일 읽기
-  const templatePath = path.join(process.cwd(), 'templates', 'jerry.html');
-  let html = fs.readFileSync(templatePath, 'utf8');
+  if (!html) {
+    return res.status(400).json({ error: 'HTML content is required.' });
+  }
 
-  // 사용자 입력값으로 {{변수}} 치환
-  Object.keys(data).forEach((key) => {
-    const value = String(data[key] || '');
-    html = html.replace(new RegExp(`{{${key}}}`, 'g'), value);
-  });
+  let browser = null;
 
-  // Puppeteer로 이미지 렌더링
-  const browser = await puppeteer.launch({
-    args: chromium.args,
-    executablePath: await chromium.executablePath(),
-    headless: chromium.headless,
-  });
+  try {
+    browser = await puppeteer.launch({
+      args: chrome.args,
+      executablePath: await chrome.executablePath,
+      headless: chrome.headless,
+    });
 
-  const page = await browser.newPage();
-  await page.setContent(html, { waitUntil: 'networkidle0' });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
 
-  const imageBuffer = await page.screenshot({ type: 'png', fullPage: true });
-  await browser.close();
+    const screenshotBuffer = await page.screenshot({ type: 'png', fullPage: true });
 
-  res.setHeader('Content-Type', 'image/png');
-  res.status(200).send(imageBuffer);
+    res.setHeader('Content-Type', 'image/png');
+    res.status(200).send(screenshotBuffer);
+  } catch (error) {
+    console.error('Error rendering image:', error);
+    res.status(500).json({ error: 'Failed to render image.' });
+  } finally {
+    if (browser !== null) {
+      await browser.close();
+    }
+  }
 }
